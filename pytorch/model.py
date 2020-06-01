@@ -10,31 +10,29 @@ import numpy as np
 import sys
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.append(ROOT_DIR)
-print(ROOT_DIR)
-sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 
-from pointnet2_modules import PointnetSAModuleVotes, PointnetFPModule, PointnetSAModule
+
+
 
 
 class Semantic3D_1(nn.Module):
     r"""
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, resolution, with_se=False, normalize=True, eps=0):
+    def __init__(self, in_channels, out_channels, kernel_size, with_se=False, normalize=True, num_cls=2):
         super().__init__()
 
-        self.voxel_layers = [
+        voxel_layers = [
             nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
             nn.BatchNorm3d(out_channels, eps=1e-4),
             nn.LeakyReLU(0.1, True),
+            nn.MaxPool3d(3),
             nn.Conv3d(out_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
             nn.BatchNorm3d(out_channels, eps=1e-4),
             nn.LeakyReLU(0.1, True),
+            nn.MaxPool3d(3),
          ]
+        self.voxel_layers = nn.Sequential(*voxel_layers)
 
 
 
@@ -43,29 +41,29 @@ class Semantic3D_1(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(True),
             nn.Dropout(0.5),
-            nn.Conv1d(64, NUM_CLASSES, kernel_size=1),
+            nn.Conv1d(64, 2, kernel_size=1),
         )
-
-    def _break_up_pc(self, pc):
-        xyz = pc[..., 0:3].contiguous()
-        features = (
-            pc[..., 3:].contiguous()
-            # pc[..., 3:].transpose(1, 2).contiguous()
-            if pc.size(-1) > 3 else None
+        self.fc = nn.Sequential(
+            nn.Linear(864, 256, bias=False),
+            nn.BatchNorm1d(256),
+            nn.ReLU(True),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_cls, bias=False),
         )
-
-        return xyz, features
 
     def forward(self, inputs):
         
         features = self.voxel_layers (inputs)        
         # flatten
         
-        
-        pred = self.fc_lyaer(features)
+        print(features.size())
+        features = torch.flatten(features, start_dim=1)
+        print(features.size())
+        pred = self.fc(features)
         pred = F.log_softmax(pred, dim=1)
-        pred = pred.transpose(1, 2)
-        # print(pred.size())
+        print(pred.size())
+#        pred = pred.transpose(1, 2)
+         
 
 
 
@@ -73,12 +71,12 @@ class Semantic3D_1(nn.Module):
 
 
 if __name__ == '__main__':
-    backbone_net = Pointnet2Backbone(input_feature_dim=0).cuda()
+    backbone_net = Semantic3D_1(in_channels = 1,out_channels =32, kernel_size = 3 ).cuda()
     print(backbone_net)
     backbone_net.eval()
-    out = backbone_net(torch.rand(1, 32,32,32).cuda())
+    out = backbone_net(torch.rand(2, 1, 32,32,32).cuda())
     check = out.cpu().data.numpy()
-    check = np.argmax(check, axis=2)
+    check = np.argmax(check, axis=1)
     print(check)
     print (out)
     # for key in sorted(out.keys()):
