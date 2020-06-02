@@ -4,7 +4,8 @@ import os
 from scipy.spatial import KDTree
 from sklearn.preprocessing import normalize
 import logging
-
+from p2v import voxelize
+import torch
 
 class Dataset():
     ATTR_EXLUSION_LIST = ['X', 'Y', 'Z', 'raw_classification', 'Classification',
@@ -112,8 +113,16 @@ class Dataset():
 
     def __len__(self):
         return self.labels.shape[0]
-
+    # get voxel data
     def getBatch(self, start_idx, batch_size, idx_randomizer=None):
+        if idx_randomizer is not None:
+            idx_range = idx_randomizer[start_idx:start_idx + batch_size]
+        else:
+            idx_range = range(start_idx, start_idx + batch_size)
+        data = self.points_and_features[idx_range]
+        labels = self.labels[idx_range]
+
+    def getVoxelBatch(self, start_idx, batch_size, idx_randomizer=None):
         if idx_randomizer is not None:
             idx_range = idx_randomizer[start_idx:start_idx + batch_size]
         else:
@@ -226,19 +235,12 @@ class ChunkedDataset(Dataset):
 
 class kNNBatchDataset(Dataset):
 
-    def __init__(self, k, spacing, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(kNNBatchDataset, self).__init__(*args, **kwargs)
-        self.spacing = spacing
-        self.k = k
-        self.tree = None
-        self.currIdx = 0
 
-        self.num_cols = (abs(self.xmax - self.xmin) - self.spacing/2) // (self.spacing) + 1
-        self.num_rows = (abs(self.ymax - self.ymin) - self.spacing/2) // (self.spacing) + 1
-        self.num_batches = int(self.num_cols * self.num_rows)
-        self.rndzer = list(range(self.num_batches))
-        np.random.shuffle(self.rndzer)
+        self.tree = None
         self.buildKD()
+        self.center_idx=0
 
     def buildKD(self):
         logging.info(" -- Building kD-Tree with %d points..." % len(self))
@@ -260,6 +262,47 @@ class kNNBatchDataset(Dataset):
             return self.points_and_features[idx, :], self.labels[idx]
         else:
             return None, None
+
+    def getBatches_Voxel(self, batch_size=1, num_point=[1024], num_grid=32 ):
+
+        batch_points=[]
+        batch_labels = []
+        batch_voxels=[]
+        for i in range(batch_size):
+            points = []
+            voxels=[]
+            _, idx = self.tree.query(self.points_and_features[self.center_idx, :2], k=num_point[-1])
+            label = self.labels[self.center_idx]
+            batch_labels.append(label)
+            batch_labels = torch.from_numpy(np.array(batch_labels).astype(np.float32)) # batch size * 1
+            batch_voxels = torch.zeros([len(num_point), batch_size, num_grid, num_grid, num_grid], dtype=torch.int32)
+            for j in range(len(num_point)):
+                point_knn = np.full((1,num_point[j] , 3), 1)
+                point_knn[0,:,:] = self.points_and_features[idx[:num_point[j]], :3]
+                point_knn = torch.from_numpy(np.array(point_knn).astype(np.float32))
+                batch_voxels[j, i, :, :] = voxelize(point_knn,
+                                                    vox_size=num_grid)  # resolution * batchsize  grid * grid * grid
+                # points.append(point_knn)
+                # print(point_knn)
+                # print(point_knn.shape)
+                # print(batch_voxels.shape)
+
+
+            # batch_points.append(points) # batchsize * resolution * num.of points * xyz
+            # batch_points = torch.from_numpy(np.array(batch_points).astype(np.float32)) # batchsize * resolution * num.of points * xyz
+
+
+        # for i in range(batch_size):
+
+
+
+            # batch_voxels.append(voxels)
+            # batch_voxels =np.array(batch_voxels)# resolution * batchsize  grid * grid * grid
+
+
+
+        return batch_voxels, batch_labels
+
 
 
     # append for inference    KUDO
@@ -284,3 +327,11 @@ class kNNBatchDataset(Dataset):
                     self.ymin + self.spacing / 2 + (batch_idx % self.num_rows) * self.spacing]]
         _, idx = self.tree.query(centers, k=self.k)
         return self.points_and_features[idx, :], self.labels[idx]
+
+
+if __name__ == '__main__':
+    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las")
+    for idx_range in range(len(d)):
+        voxels, labels = d.getBatches_Voxel(batch_size=1, num_point=[1024, 2048, 4096, 8192], num_grid=32)
+        print(str(voxels.size())+" , "+ str(labels.size()) + " , "+ str(d.center_idx))
+        d.center_idx += 1
