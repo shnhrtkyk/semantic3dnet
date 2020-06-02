@@ -78,3 +78,12 @@ def batch_iou(bpc1, bpc2, voxsize=32, thres=.4):
 
     total = map(_iou, bpc1, bpc2)
     return sum(total) / len(bpc1)
+
+
+if __name__ == '__main__':
+    pc =  T.rand(12, 256, 3).cuda() #bach * num.of point * xyz
+    voxel = voxelize(pc, vox_size=32)
+    print(voxel)
+    print(voxel.size())
+
+
