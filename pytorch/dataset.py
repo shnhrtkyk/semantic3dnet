@@ -13,12 +13,12 @@ class Dataset():
                           'pt_src_id', 'gps_time']
     ATTR_EXTRA_LIST = ['num_returns', 'return_num']
 
-    def __init__(self, file, load=True, multiclass=False, normalize=False, shuffle = False):
+    def __init__(self, file, load=True, undersampling=False, normalize=False, shuffle = False):
         self.file = file
         self._features = self._xyz = self._classes = self._names = None
         self.xmax = self.xmin = self.ymax = self.ymin = None
         self._header = None
-        self.multiclass = multiclass
+        self.undersampling = undersampling
         self.normalize = normalize
         self.shuffle = shuffle
         
@@ -44,7 +44,7 @@ class Dataset():
                                    if name not in Dataset.ATTR_EXLUSION_LIST]).transpose()
         self._names = [name for name in attr_names if name not in Dataset.ATTR_EXLUSION_LIST]
         # 地面クラスに合わせたアンダーサンプル
-        if (self.multiclass == True):
+        if (self.undersampling == True):
             
             ind_of_ground = np.where(self._classes  == 0)
             # class_g = self._classes[ind_of_ground]
@@ -342,7 +342,7 @@ class kNNBatchDataset(Dataset):
 
 
 if __name__ == '__main__':
-    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las", shuffle=True)
+    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las", undersampling= True, shuffle=True)
     for idx_range in range(len(d)):
         voxels, labels = d.getBatches_Voxel(batch_size=1, num_point=[1024, 2048, 4096, 8192], num_grid=32)
         print(str(voxels.size())+" , "+ str(labels.size()) + " , "+ str(d.center_idx))
