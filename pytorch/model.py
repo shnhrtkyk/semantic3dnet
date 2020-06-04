@@ -16,11 +16,10 @@ import os
 
 
 class Semantic3D_1(nn.Module):
-    r"""
-    """
-
-    def __init__(self, in_channels, out_channels, kernel_size, with_se=False, normalize=True, num_cls=2, num_scale = 1):
+    def __init__(self, in_channels, out_channels, kernel_size, with_se=False, normalize=True, num_cls=2, num_scale = 5):
         super().__init__()
+
+        self.num_scale = num_scale
 
         voxel_layers = [
             nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=kernel_size // 2),
@@ -34,6 +33,13 @@ class Semantic3D_1(nn.Module):
          ]
         self.voxel_layers = nn.Sequential(*voxel_layers)
 
+        concate_layers = [
+            nn.Conv3d(out_channels*num_scale, out_channels, 1, stride=1),
+            nn.BatchNorm3d(out_channels, eps=1e-4),
+            nn.LeakyReLU(0.1, True),
+        ]
+        self.concate_layers = nn.Sequential(*concate_layers)
+
 
 
         self.fc_lyaer = nn.Sequential(
@@ -43,8 +49,6 @@ class Semantic3D_1(nn.Module):
             nn.Dropout(0.5),
             nn.Conv1d(64, 2, kernel_size=1),
         )
-
-        
         self.fc = nn.Sequential(
             nn.Linear(864, 256, bias=False),
             nn.BatchNorm1d(256),
@@ -56,8 +60,12 @@ class Semantic3D_1(nn.Module):
     def forward(self, inputs):
         
         features = self.voxel_layers (inputs)        
-        # flatten
-        
+        if(self.num_scale > 2):
+            for i in range( self.num_scale - 1):
+                features = torch.cat((features, voxel_layers(features))
+            features = self.concate_layers (features)   
+
+                
         print(features.size())
         features = torch.flatten(features, start_dim=1)
         print(features.size())
@@ -74,6 +82,8 @@ class Semantic3D_1(nn.Module):
 
 if __name__ == '__main__':
     backbone_net = Semantic3D_1(in_channels = 1,out_channels =32, kernel_size = 3 ).cuda()
+
+
     print(backbone_net)
     backbone_net.eval()
     out = backbone_net(torch.rand(2, 1, 32,32,32).cuda())
