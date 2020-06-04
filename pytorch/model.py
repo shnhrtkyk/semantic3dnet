@@ -19,7 +19,7 @@ class Semantic3D_1(nn.Module):
     r"""
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, with_se=False, normalize=True, num_cls=2):
+    def __init__(self, in_channels, out_channels, kernel_size, with_se=False, normalize=True, num_cls=2, num_scale = 1):
         super().__init__()
 
         voxel_layers = [
@@ -43,6 +43,8 @@ class Semantic3D_1(nn.Module):
             nn.Dropout(0.5),
             nn.Conv1d(64, 2, kernel_size=1),
         )
+
+        
         self.fc = nn.Sequential(
             nn.Linear(864, 256, bias=False),
             nn.BatchNorm1d(256),
