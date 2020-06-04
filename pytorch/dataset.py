@@ -13,13 +13,15 @@ class Dataset():
                           'pt_src_id', 'gps_time']
     ATTR_EXTRA_LIST = ['num_returns', 'return_num']
 
-    def __init__(self, file, load=True, multiclass=False, normalize=False):
+    def __init__(self, file, load=True, multiclass=False, normalize=False, shuffle = False):
         self.file = file
         self._features = self._xyz = self._classes = self._names = None
         self.xmax = self.xmin = self.ymax = self.ymin = None
         self._header = None
         self.multiclass = multiclass
         self.normalize = normalize
+        self.shuffle = shuffle
+        
         if load:
             self.load_data()
 
@@ -28,15 +30,7 @@ class Dataset():
         file_h = laspy.file.File(self.file, mode='r')
         self._xyz = np.vstack([file_h.x, file_h.y, file_h.z]).transpose()
         self._classes = file_h.classification
-        #self._classes = np.where(self._classes == 2,0,self._classes)
-        #self._classes = np.where(self._classes == 7,1,self._classes)
-        #self._classes = np.where(self._classes > 1,2,self._classes)
-        #self._classes = np.where(self._classes < 0,2,self._classes)
-
-        #self._classes = np.where(self._classes == 0,-1,self._classes)
-        #self._classes = np.where(self._classes == 8, 0,self._classes)
-        #self._classes = np.where(self._classes == -1,8,self._classes)
-
+        self.index_for_train = np.array(range(len(self._classes)))
         # self._classes = np.where(self._classes == 2, 0,self._classes)
         # self._classes = np.where(self._classes == 6, 1,self._classes)
         # self._classes = np.where(self._classes > 1, 2,self._classes)
@@ -48,6 +42,20 @@ class Dataset():
         self._features = np.array([getattr(file_h, name) for name in attr_names
                                    if name not in Dataset.ATTR_EXLUSION_LIST]).transpose()
         self._names = [name for name in attr_names if name not in Dataset.ATTR_EXLUSION_LIST]
+        # 地面クラスに合わせたアンダーサンプル
+        if (self.multiclass == True):
+            
+            ind_of_ground = np.where(self._classes  == 0)
+            # class_g = self._classes[ind_of_ground]
+            # points_g = self._xyz[ind_of_ground]
+            ind_of_build = np.where(self._classes  == 1)
+            ind_of_build = np.random.choice(aind_of_build len(ind_of_ground), replace=False) # 重複なし
+            self.index_for_train = np.vstack (ind_of_ground , ind_of_build)
+            if (self.shuffle == True): np.random.shuffle(self.index_for_train)
+            # class_b = self._classes[ind_of_build]
+            
+
+
 
         self.xmin = file_h.header.min[0]
         self.ymin = file_h.header.min[1]
@@ -70,10 +78,9 @@ class Dataset():
     def labels(self):
         if self._xyz is None:
             self.load_data()
-        #if (self._classes != 2):self._classes = 0
-        #ret_val = self._classes
+
         
-        ret_val = self._classes #if self.multiclass else (self._classes != 2).astype('int8') + 2
+        ret_val = self._classes 
         return ret_val
 
     @property
@@ -271,8 +278,11 @@ class kNNBatchDataset(Dataset):
         for i in range(batch_size):
             points = []
             voxels=[]
-            _, idx = self.tree.query(self.points_and_features[self.center_idx, :2], k=num_point[-1])
-            label = self.labels[self.center_idx]
+            tmp_index = self.center_idx
+            if (self.shuffle == True):
+                tmp_index = self.
+            _, idx = self.tree.query(self.points_and_features[tmp_index, :2], k=num_point[-1])
+            label = self.labels[tmp_index]
             batch_labels.append(label)
             batch_labels = torch.from_numpy(np.array(batch_labels).astype(np.float32)) # batch size * 1
             batch_voxels = torch.zeros([len(num_point), batch_size, num_grid, num_grid, num_grid], dtype=torch.int32)
