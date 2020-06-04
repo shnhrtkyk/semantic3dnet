@@ -31,6 +31,7 @@ class Dataset():
         self._xyz = np.vstack([file_h.x, file_h.y, file_h.z]).transpose()
         self._classes = file_h.classification
         self.index_for_train = np.array(range(len(self._classes)))
+        self.length = len(self.index_for_train)
         # self._classes = np.where(self._classes == 2, 0,self._classes)
         # self._classes = np.where(self._classes == 6, 1,self._classes)
         # self._classes = np.where(self._classes > 1, 2,self._classes)
@@ -51,6 +52,7 @@ class Dataset():
             ind_of_build = np.where(self._classes  == 1)
             ind_of_build = np.random.choice(aind_of_build len(ind_of_ground), replace=False) # 重複なし
             self.index_for_train = np.vstack (ind_of_ground , ind_of_build)
+            self.length = len(self.index_for_train)
             if (self.shuffle == True): np.random.shuffle(self.index_for_train)
             # class_b = self._classes[ind_of_build]
             
@@ -280,7 +282,7 @@ class kNNBatchDataset(Dataset):
             voxels=[]
             tmp_index = self.center_idx
             if (self.shuffle == True):
-                tmp_index = self.
+                tmp_index = self.index_for_train[self.center_idx]
             _, idx = self.tree.query(self.points_and_features[tmp_index, :2], k=num_point[-1])
             label = self.labels[tmp_index]
             batch_labels.append(label)
@@ -340,7 +342,7 @@ class kNNBatchDataset(Dataset):
 
 
 if __name__ == '__main__':
-    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las")
+    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las", shuffle=True)
     for idx_range in range(len(d)):
         voxels, labels = d.getBatches_Voxel(batch_size=1, num_point=[1024, 2048, 4096, 8192], num_grid=32)
         print(str(voxels.size())+" , "+ str(labels.size()) + " , "+ str(d.center_idx))
