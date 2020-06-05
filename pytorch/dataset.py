@@ -7,13 +7,14 @@ import logging
 from p2v import voxelize
 import torch
 
+
 class Dataset():
     ATTR_EXLUSION_LIST = ['X', 'Y', 'Z', 'raw_classification', 'Classification',
                           'flag_byte', 'scan_angle_rank', 'user_data',
                           'pt_src_id', 'gps_time']
     ATTR_EXTRA_LIST = ['num_returns', 'return_num']
 
-    def __init__(self, file, load=True, undersampling=False, normalize=False, shuffle = False):
+    def __init__(self, file, load=True, undersampling=False, normalize=False, shuffle=False):
         self.file = file
         self._features = self._xyz = self._classes = self._names = None
         self.xmax = self.xmin = self.ymax = self.ymin = None
@@ -21,7 +22,7 @@ class Dataset():
         self.undersampling = undersampling
         self.normalize = normalize
         self.shuffle = shuffle
-        
+
         if load:
             self.load_data()
 
@@ -32,9 +33,12 @@ class Dataset():
         self._classes = file_h.classification
         self.index_for_train = np.array(range(len(self._classes)))
         self.length = len(self.index_for_train)
-        # self._classes = np.where(self._classes == 2, 0,self._classes)
-        # self._classes = np.where(self._classes == 6, 1,self._classes)
-        # self._classes = np.where(self._classes > 1, 2,self._classes)
+        # self._classes =  self._classes
+        self._classes = np.where(self._classes == 1, 0, self._classes)
+        self._classes = np.where(self._classes == 6, 0, self._classes)
+        self._classes = np.where(self._classes > 1, 1, self._classes)
+
+
 
         lbl = np.unique(self._classes[self._classes >= 0])
         print(lbl)
@@ -45,19 +49,28 @@ class Dataset():
         self._names = [name for name in attr_names if name not in Dataset.ATTR_EXLUSION_LIST]
         # 地面クラスに合わせたアンダーサンプル
         if (self.undersampling == True):
-            
-            ind_of_ground = np.where(self._classes  == 0)
+
+            ind_of_ground = np.where(self._classes == 0)[0]
             # class_g = self._classes[ind_of_ground]
             # points_g = self._xyz[ind_of_ground]
-            ind_of_build = np.where(self._classes  == 1)
-            ind_of_build = np.random.choice(aind_of_build len(ind_of_ground), replace=False) # 重複なし
-            self.index_for_train = np.vstack (ind_of_ground , ind_of_build)
+            ind_of_build = np.where(self._classes == 1)[0]
+            print(ind_of_ground)
+
+
+
+            ind_of_build = ind_of_build[:len(ind_of_ground)]
+            # print(ind_of_build)
+
+            self.index_for_train = ind_of_ground
+            np.insert(self.index_for_train , 0, ind_of_build)
+            # print(self.index_for_train.shape)
+
             self.length = len(self.index_for_train)
             if (self.shuffle == True): np.random.shuffle(self.index_for_train)
+            print(self.index_for_train)
+
+
             # class_b = self._classes[ind_of_build]
-            
-
-
 
         self.xmin = file_h.header.min[0]
         self.ymin = file_h.header.min[1]
@@ -72,7 +85,7 @@ class Dataset():
         for i in range(np.max(self.labels)):
             count = np.count_nonzero(self.labels == i)
             stats['absolute'][i] = count
-            stats['relative'][i] = count/len(self)
+            stats['relative'][i] = count / len(self)
 
         return stats
 
@@ -81,8 +94,7 @@ class Dataset():
         if self._xyz is None:
             self.load_data()
 
-        
-        ret_val = self._classes 
+        ret_val = self._classes
         return ret_val
 
     @property
@@ -119,9 +131,9 @@ class Dataset():
     def get_feature_count(self):
         return self._features.shape[1]
 
-
     def __len__(self):
         return self.labels.shape[0]
+
     # get voxel data
     def getBatch(self, start_idx, batch_size, idx_randomizer=None):
         if idx_randomizer is not None:
@@ -153,10 +165,12 @@ class Dataset():
         if new_classes is not None:
             outfile.define_new_dimension(name="estim_class", data_type=5, description="estimated class")
         if labels is not None and new_classes is not None:
-            outfile.define_new_dimension(name="class_correct", data_type=5, description="correctness of estimated class")
+            outfile.define_new_dimension(name="class_correct", data_type=5,
+                                         description="correctness of estimated class")
         if probs is not None:
             for classid in range(probs.shape[1]):
-                outfile.define_new_dimension(name="prob_class%02d" % classid, data_type=9, description="p of estimated class %02d"%classid)
+                outfile.define_new_dimension(name="prob_class%02d" % classid, data_type=9,
+                                             description="p of estimated class %02d" % classid)
 
         allx = points_and_features[:, 0]
         ally = points_and_features[:, 1]
@@ -173,15 +187,15 @@ class Dataset():
         outfile.y = ally
         outfile.z = allz
 
-        for featid in range(points_and_features.shape[1]-3):
+        for featid in range(points_and_features.shape[1] - 3):
             try:
-                data = points_and_features[:, 3+featid]
+                data = points_and_features[:, 3 + featid]
                 if names[featid] in ['num_returns', 'return_num']:  # hack to treat int-values
                     data = data.astype('int8')
                 setattr(outfile, names[featid], data)
             except Exception as e:
                 logging.warning("Could not save attribute %s to file %s: \n%s" % (names[featid], path, e))
-                #raise
+                # raise
 
         if probs is not None:
             for classid in range(probs.shape[1]):
@@ -192,7 +206,7 @@ class Dataset():
         if new_classes is not None:
             outfile.estim_class = new_classes
         if labels is not None and new_classes is not None:
-            outfile.class_correct = np.equal(labels, new_classes)*-1 + 6  #  so that equal =5 --> green (veg)
+            outfile.class_correct = np.equal(labels, new_classes) * -1 + 6  # so that equal =5 --> green (veg)
             #  and not equal =6 --> red (building)
 
         outfile.close()
@@ -242,6 +256,7 @@ class ChunkedDataset(Dataset):
 
         return stats
 
+
 class kNNBatchDataset(Dataset):
 
     def __init__(self, *args, **kwargs):
@@ -249,21 +264,20 @@ class kNNBatchDataset(Dataset):
 
         self.tree = None
         self.buildKD()
-        self.center_idx=0
+        self.center_idx = 0
 
     def buildKD(self):
         logging.info(" -- Building kD-Tree with %d points..." % len(self))
         self.tree = KDTree(self._xyz[:, :2], leafsize=100)  # build only on x/y
         logging.info(" --- kD-Tree built.")
 
-
     def getBatches(self, batch_size=1):
         centers = []
         for i in range(batch_size):
             if self.currIdx >= self.num_batches:
                 break
-            centers.append([self.xmin + self.spacing/2 + (self.currIdx // self.num_rows) * self.spacing,
-                            self.ymin + self.spacing/2 + (self.currIdx % self.num_rows) * self.spacing])
+            centers.append([self.xmin + self.spacing / 2 + (self.currIdx // self.num_rows) * self.spacing,
+                            self.ymin + self.spacing / 2 + (self.currIdx % self.num_rows) * self.spacing])
             self.currIdx += 1
             print(centers)
         if centers:
@@ -272,50 +286,50 @@ class kNNBatchDataset(Dataset):
         else:
             return None, None
 
-    def getBatches_Voxel(self, batch_size=1, num_point=[1024], num_grid=32 ):
+    def getBatches_Voxel(self, batch_size=1, num_point=[1024], num_grid=32):
 
-        batch_points=[]
+        batch_points = []
         batch_labels = []
-        batch_voxels=[]
+        batch_labels = torch.zeros([batch_size, 1], dtype=torch.float) # batch size * 1
+        batch_voxels = []
+        batch_voxels = torch.zeros([len(num_point), batch_size, 1, num_grid, num_grid, num_grid], dtype=torch.float)
         for i in range(batch_size):
             points = []
-            voxels=[]
+            voxels = []
             tmp_index = self.center_idx
             if (self.shuffle == True):
                 tmp_index = self.index_for_train[self.center_idx]
+
             _, idx = self.tree.query(self.points_and_features[tmp_index, :2], k=num_point[-1])
             label = self.labels[tmp_index]
-            batch_labels.append(label)
-            batch_labels = torch.from_numpy(np.array(batch_labels).astype(np.float32)) # batch size * 1
-            batch_voxels = torch.zeros([len(num_point), batch_size, num_grid, num_grid, num_grid], dtype=torch.int32)
+            # print(label)
+            batch_labels[i] = torch.from_numpy(np.array(label).astype(np.float32))
+
+            self.center_idx += 1
+
+
             for j in range(len(num_point)):
-                point_knn = np.full((1,num_point[j] , 3), 1)
-                point_knn[0,:,:] = self.points_and_features[idx[:num_point[j]], :3]
+                point_knn = np.full((1, num_point[j], 3), 1)
+                point_knn[0, :, :] = self.points_and_features[idx[:num_point[j]], :3]
                 point_knn = torch.from_numpy(np.array(point_knn).astype(np.float32))
-                batch_voxels[j, i, :, :] = voxelize(point_knn,
-                                                    vox_size=num_grid)  # resolution * batchsize  grid * grid * grid
+                batch_voxels[j, i, :, :, :, :] = voxelize(point_knn,
+                                                    vox_size=num_grid)  # resolution * batchsize *  ch * grid * grid * grid
                 # points.append(point_knn)
                 # print(point_knn)
                 # print(point_knn.shape)
                 # print(batch_voxels.shape)
 
-
             # batch_points.append(points) # batchsize * resolution * num.of points * xyz
             # batch_points = torch.from_numpy(np.array(batch_points).astype(np.float32)) # batchsize * resolution * num.of points * xyz
 
-
         # for i in range(batch_size):
 
+        # batch_voxels.append(voxels)
+        # batch_voxels =np.array(batch_voxels)# resolution * batchsize  grid * grid * grid
 
-
-            # batch_voxels.append(voxels)
-            # batch_voxels =np.array(batch_voxels)# resolution * batchsize  grid * grid * grid
-
-
+        # batch_labels = torch.from_numpy(np.array(batch_labels).astype(np.float32))  # batch size * 1
 
         return batch_voxels, batch_labels
-
-
 
     # append for inference    KUDO
     def getBatchsWithIdx(self, batch_size=1):
@@ -323,8 +337,8 @@ class kNNBatchDataset(Dataset):
         for i in range(batch_size):
             if self.currIdx >= self.num_batches:
                 break
-            centers.append([self.xmin + self.spacing/2 + (self.currIdx // self.num_rows) * self.spacing,
-                            self.ymin + self.spacing/2 + (self.currIdx % self.num_rows) * self.spacing])
+            centers.append([self.xmin + self.spacing / 2 + (self.currIdx // self.num_rows) * self.spacing,
+                            self.ymin + self.spacing / 2 + (self.currIdx % self.num_rows) * self.spacing])
             self.currIdx += 1
             # print(centers)
         if centers:
@@ -332,7 +346,6 @@ class kNNBatchDataset(Dataset):
             return self.points_and_features[idx, :], self.labels[idx], np.array(idx)
         else:
             return None, None, None
-
 
     def getBatchByIdx(self, batch_idx):
         centers = [[self.xmin + self.spacing / 2 + (batch_idx // self.num_rows) * self.spacing,
@@ -342,8 +355,9 @@ class kNNBatchDataset(Dataset):
 
 
 if __name__ == '__main__':
-    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las", undersampling= True, shuffle=True)
-    for idx_range in range(len(d)):
-        voxels, labels = d.getBatches_Voxel(batch_size=1, num_point=[1024, 2048, 4096, 8192], num_grid=32)
-        print(str(voxels.size())+" , "+ str(labels.size()) + " , "+ str(d.center_idx))
+    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las",
+                        undersampling=False, shuffle=False)
+    for idx_range in range(d.length):
+        voxels, labels = d.getBatches_Voxel(batch_size=12, num_point=[1024, 2048, 4096, 8192], num_grid=32)
+        print(str(voxels.size()) + " , " + str(labels) + " , " + str(d.center_idx))
         d.center_idx += 1
