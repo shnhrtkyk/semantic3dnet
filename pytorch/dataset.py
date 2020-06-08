@@ -313,7 +313,7 @@ class kNNBatchDataset(Dataset):
                 point_knn = np.full((num_point[j], 3), 1)
                 point_knn[:, :] = self.points_and_features[idx[:num_point[j]], :3]
                 # point_knn = torch.from_numpy(np.array(point_knn).astype(np.float32))
-                print(point_knn.shape)
+                # print(point_knn.shape)
                 batch_voxels[j, i, :, :, :, :] = torch.from_numpy(np.array(voxelization(point_knn,
                                                     vox_size=num_grid)).astype(np.float32))  # resolution * batchsize *  ch * grid * grid * grid
                 # points.append(point_knn)

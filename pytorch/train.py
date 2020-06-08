@@ -43,14 +43,14 @@ def main(args):
     num_grid = 32
     kernel_size = 3
     out_channels = 32
-    batch_size = 24
+    batch_size = 4
     num_cls = 2
 
     '''MODEL LOADING'''
     # model = Semantic3D_1(in_channels = 1, out_channels =out_channels, kernel_size = kernel_size , num_scale=num_scale, num_cls=num_cls).cuda()
     model = ResidualSemantic3DNet().cuda()
     weights = torch.ones(num_cls).cuda()
-    weights[0] = 1
+    weights[0] = 100
     weights[1] = 1
     criterion = get_loss().cuda()
 
@@ -146,6 +146,6 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', default="Adam", help='which Optimizer (default: Adam)')
     parser.add_argument('--decay_rate', type=float, default=1e-4, help='weight decay [default: 1e-4]')
     args = parser.parse_args()
-    args.inList = ["C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las"]
+    args.inList = ["../data/test.las"]
     args.outDir = "./"
     main(args)
