@@ -33,7 +33,7 @@ class ConvBlock(nn.Module):
     def forward(self, inputs):
         # print(self.voxel_layers)
         # print(inputs.size())
-        features = self.voxel_layers(inputs)#ナイスパブリケーション
+        features = self.voxel_layers(inputs)#
         return features
 
 

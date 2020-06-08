@@ -192,7 +192,7 @@ class VoxceptionNet(nn.Module):
         x = self.input_conv(x)
         x = self.b1(x)
         x = self.b2(x)
-        x = self.b3(x)
+        x = self.b3(x)#
         x = self.b4(x)
         x = self.b5(x)
         return x
