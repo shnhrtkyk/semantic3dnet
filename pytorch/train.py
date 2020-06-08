@@ -38,17 +38,17 @@ def main(args):
 
     '''PARAM. SET'''
     # num_point = [1024]
-    num_point = [256, 512, 1024, 2048]
+    num_point = [256, 512, 1024, 2048, 4096]
     num_scale = len(num_point)
     num_grid = 32
     kernel_size = 3
     out_channels = 32
-    batch_size = 4
+    batch_size = 24
     num_cls = 2
 
     '''MODEL LOADING'''
-    # model = Semantic3D_1(in_channels = 1, out_channels =out_channels, kernel_size = kernel_size , num_scale=num_scale, num_cls=num_cls).cuda()
-    model = ResidualSemantic3DNet().cuda()
+    model = Semantic3D_1(in_channels = 1, out_channels =out_channels, kernel_size = kernel_size , num_scale=num_scale, num_cls=num_cls).cuda()
+    # model = ResidualSemantic3DNet().cuda()
     weights = torch.ones(num_cls).cuda()
     weights[0] = 100
     weights[1] = 1
@@ -68,7 +68,7 @@ def main(args):
 
     '''SET OPTIMIZER'''
     if args.optimizer == 'Adam':
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.Adam(#
             model.parameters(),
             lr=args.learningRate,
             betas=(0.9, 0.999),

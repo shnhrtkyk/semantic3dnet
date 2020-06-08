@@ -33,7 +33,7 @@ class ConvBlock(nn.Module):
     def forward(self, inputs):
         # print(self.voxel_layers)
         # print(inputs.size())
-        features = self.voxel_layers(inputs)
+        features = self.voxel_layers(inputs)#ナイスパブリケーション
         return features
 
 
@@ -101,11 +101,11 @@ class Semantic3D_1(nn.Module):
         # print(self.convblocks_1)
         print(inputs.size())
 
-        features = self.convblocks_1(inputs)
-        features = torch.cat((features, self.convblocks_2(inputs)), axis = 1)
-        features = torch.cat((features, self.convblocks_3(inputs)), axis = 1)
-        features = torch.cat((features, self.convblocks_4(inputs)), axis = 1)
-        features = torch.cat((features, self.convblocks_5(inputs)), axis = 1)
+        features = self.convblocks_1(inputs[0])
+        features = torch.cat((features, self.convblocks_2(inputs[1])), axis = 1)
+        features = torch.cat((features, self.convblocks_3(inputs[2])), axis = 1)
+        features = torch.cat((features, self.convblocks_4(inputs[3])), axis = 1)
+        features = torch.cat((features, self.convblocks_5(inputs[4])), axis = 1)
                 # print(features.size())
         features = self.concate_layers(features)
 
@@ -113,7 +113,7 @@ class Semantic3D_1(nn.Module):
         features = torch.flatten(features, start_dim=1)
         # print(features.size())
         pred = self.fc(features)
-        # pred = F.log_softmax(pred, dim=1)
+        pred = F.log_softmax(pred, dim=1)
         # print(pred.size())
                 #        pred = pred.transpose(1, 2)
 
