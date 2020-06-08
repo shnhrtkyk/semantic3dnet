@@ -202,10 +202,11 @@ class ResidualSemantic3DNet(nn.Module):
     def __init__(self, n_classes=2, num_scale = 4):
         super(ResidualSemantic3DNet, self).__init__()
         self.num_scale = num_scale
-        self.ResModels = []
-
-        for i in range(num_scale):
-            self.ResModels.append(VoxceptionNet().cuda())
+        self.ResModels_1 = VoxceptionNet().cuda()
+        self.ResModels_2 = VoxceptionNet().cuda()
+        self.ResModels_3 = VoxceptionNet().cuda()
+        self.ResModels_4 = VoxceptionNet().cuda()
+        self.ResModels_5 = VoxceptionNet().cuda()
 
         self.concate_conv = nn.Sequential(
             Resdrop(nn.Sequential(nn.Conv3d(2560, 512, 1, 1, 1), nn.BatchNorm3d(512, eps=0.001)), 0.5), nn.ELU())
@@ -222,12 +223,17 @@ class ResidualSemantic3DNet(nn.Module):
         self.fc = nn.Sequential(nn.Linear(512, 512), nn.BatchNorm1d(512), nn.ELU(), nn.Linear(512, n_classes))
 
     def forward(self, inputs):
-        features = self.ResModels[0](inputs[0])
-        if (self.num_scale > 2):
-            for i in range(self.num_scale - 1):
-                features = torch.cat((features, self.ResModels[i+1](inputs[i+1])), axis = 1)
-                # print(features.size())
-            features = self.concate_layers(features)
+        features = self.ResModels_1(inputs[0])
+        features = torch.cat((features, self.ResModels_2(inputs[1])), axis = 1)
+        features = torch.cat((features, self.ResModels_2(inputs[2])), axis = 1)
+        features = torch.cat((features, self.ResModels_2(inputs[3])), axis = 1)
+        features = torch.cat((features, self.ResModels_2(inputs[4])), axis = 1)
+        features = torch.cat((features, self.ResModels_2(inputs[5])), axis = 1)
+        # if (self.num_scale > 2):
+        #     for i in range(self.num_scale - 1):
+        #         features = torch.cat((features, self.ResModels[i+1](inputs[i+1])), axis = 1)
+        #         # print(features.size())
+        features = self.concate_layers(features)
             # print(features.size())
         features = torch.flatten(features, start_dim=1)
         # print(features.size())
