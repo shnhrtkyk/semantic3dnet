@@ -20,25 +20,30 @@ matplotlib.use('TkAgg')
 
 
 
-def voxelization(inputs = tensor):
-    bunny = pd.DataFrame({'x': bunny[:,0],
-                   'y': bunny[:,1],
-                   'z': bunny[:,2]})
+def voxelization(tensor, vox_size = 32):
+    '''
+    input: # points * xyz
+    output: ch * gridsize * gridsize * gridsize
+    ch is occupacy indomation 1: oppupied, 0: null
+    '''
+    bunny = pd.DataFrame({'x': tensor[:,0],
+                   'y': tensor[:,1],
+                   'z': tensor[:,2]})
     cloud = PyntCloud(pd.DataFrame(bunny))
-    voxelgrid_id = cloud.add_structure("voxelgrid", n_x=32, n_y=32, n_z=32)
+    voxelgrid_id = cloud.add_structure("voxelgrid", n_x=vox_size, n_y=vox_size, n_z=vox_size)
     voxelgrid = cloud.structures[voxelgrid_id]
     x_cords = voxelgrid.voxel_x
     y_cords = voxelgrid.voxel_y
     z_cords = voxelgrid.voxel_z
-    voxel = np.zeros((32, 32, 32)).astype(np.float)
+    voxel = np.zeros((1, vox_size, vox_size, vox_size)).astype(np.float)
     for x, y, z in zip(x_cords, y_cords, z_cords):
-        voxel[x][y][z] = 1.
+        voxel[0][x][y][z] = 1.
     return voxel
 
     
 
 
-
+# デバッグ用可視化の素材
 def int2hue(integer, in_max=255, out_max=255, is_alpha=False):
     if is_alpha:
         return tuple( float(v * out_max) for v in  colorsys.hsv_to_rgb(integer/in_max, 1, 1) ) + (out_max,)
@@ -101,32 +106,36 @@ if __name__ == '__main__':
         
     fname = "../data/test.txt"
     bunny = np.loadtxt(fname, dtype="float")
+    voxel = voxelization(bunny)
+    print(voxel.shape)
+    draw3d(voxel[0])
+    # 
     
-    bunny = pd.DataFrame({'x': bunny[:,0],
-                       'y': bunny[:,1],
-                       'z': bunny[:,2]})
+    # bunny = pd.DataFrame({'x': bunny[:,0],
+    #                    'y': bunny[:,1],
+    #                    'z': bunny[:,2]})
     
-    # bunny = pd.DataFrame(bunny[:,0])
-    print(bunny.sample(3))
-    # cloud = PyntCloud.from_file(fname,
-    #                             sep=" ",
-    #                             header=0,
-    #                             names=["x","y","z"])
-    cloud = PyntCloud(pd.DataFrame(bunny))
+    # # bunny = pd.DataFrame(bunny[:,0])
+    # print(bunny.sample(3))
+    # # cloud = PyntCloud.from_file(fname,
+    # #                             sep=" ",
+    # #                             header=0,
+    # #                             names=["x","y","z"])
+    # cloud = PyntCloud(pd.DataFrame(bunny))
     
-    # cloud.plot(mesh=True, backend="threejs")
+    # # cloud.plot(mesh=True, backend="threejs")
     
-    voxelgrid_id = cloud.add_structure("voxelgrid", n_x=32, n_y=32, n_z=32)
-    voxelgrid = cloud.structures[voxelgrid_id]
-    # voxelgrid.plot(d=3, mode="density", cmap="hsv")
+    # voxelgrid_id = cloud.add_structure("voxelgrid", n_x=32, n_y=32, n_z=32)
+    # voxelgrid = cloud.structures[voxelgrid_id]
+    # # voxelgrid.plot(d=3, mode="density", cmap="hsv")
     
-    x_cords = voxelgrid.voxel_x
-    y_cords = voxelgrid.voxel_y
-    z_cords = voxelgrid.voxel_z
+    # x_cords = voxelgrid.voxel_x
+    # y_cords = voxelgrid.voxel_y
+    # z_cords = voxelgrid.voxel_z
     
-    voxel = np.zeros((32, 32, 32)).astype(np.float)
+    # voxel = np.zeros((32, 32, 32)).astype(np.float)
     
-    for x, y, z in zip(x_cords, y_cords, z_cords):
-        voxel[x][y][z] = 1.
+    # for x, y, z in zip(x_cords, y_cords, z_cords):
+    #     voxel[x][y][z] = 1.
     
-    draw3d(voxel)
+    

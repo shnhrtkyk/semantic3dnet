@@ -5,6 +5,7 @@ from scipy.spatial import KDTree
 from sklearn.preprocessing import normalize
 import logging
 from p2v import voxelize
+from p2v_pyntcloud import voxelization
 import torch
 
 
@@ -309,11 +310,12 @@ class kNNBatchDataset(Dataset):
 
 
             for j in range(len(num_point)):
-                point_knn = np.full((1, num_point[j], 3), 1)
-                point_knn[0, :, :] = self.points_and_features[idx[:num_point[j]], :3]
-                point_knn = torch.from_numpy(np.array(point_knn).astype(np.float32))
-                batch_voxels[j, i, :, :, :, :] = voxelize(point_knn,
-                                                    vox_size=num_grid)  # resolution * batchsize *  ch * grid * grid * grid
+                point_knn = np.full((num_point[j], 3), 1)
+                point_knn[:, :] = self.points_and_features[idx[:num_point[j]], :3]
+                # point_knn = torch.from_numpy(np.array(point_knn).astype(np.float32))
+                print(point_knn.shape)
+                batch_voxels[j, i, :, :, :, :] = torch.from_numpy(np.array(voxelization(point_knn,
+                                                    vox_size=num_grid)).astype(np.float32))  # resolution * batchsize *  ch * grid * grid * grid
                 # points.append(point_knn)
                 # print(point_knn)
                 # print(point_knn.shape)
@@ -355,7 +357,7 @@ class kNNBatchDataset(Dataset):
 
 
 if __name__ == '__main__':
-    d = kNNBatchDataset(file="C:/Users/006403/Desktop/votenet-master/tf_wave-master/alsNet_Pytorch/test_test.las",
+    d = kNNBatchDataset(file="../data/test.las",
                         undersampling=False, shuffle=False)
     for idx_range in range(d.length):
         voxels, labels = d.getBatches_Voxel(batch_size=12, num_point=[1024, 2048, 4096, 8192], num_grid=32)
